@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import collections
-
+from logger import logger
 
 class strLabelConverter(object):
     """Convert between str and label.
@@ -42,11 +42,11 @@ class strLabelConverter(object):
         if isinstance(text, str):
             text = [
                 self.dict[char.lower() if self._ignore_case else char]
-                for char in text
+                for char in text.decode("utf-8")
             ]
             length = [len(text)]
         elif isinstance(text, collections.Iterable):
-            length = [len(s) for s in text]
+            length = [len(s.decode("utf-8")) for s in text]
             text = ''.join(text)
             text, _ = self.encode(text)
         return (torch.IntTensor(text), torch.IntTensor(length))

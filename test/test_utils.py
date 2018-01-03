@@ -11,6 +11,7 @@ sys.path.append("..")
 import utils
 sys.path = origin_path
 
+from keys import KEYS
 
 def equal(a, b):
     if isinstance(a, torch.Tensor):
@@ -29,7 +30,7 @@ def equal(a, b):
 class utilsTestCase(unittest.TestCase):
 
     def checkConverter(self):
-        encoder = utils.strLabelConverter('abcdefghijklmnopqrstuvwxyz')
+        encoder = utils.strLabelConverter(KEYS)
 
         # Encode
         # trivial mode

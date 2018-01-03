@@ -1,3 +1,6 @@
+#!/usr/bin/python
+# encoding: utf-8
+
 from __future__ import print_function
 import argparse
 import random
@@ -14,6 +17,8 @@ import dataset
 
 import models.crnn as crnn
 
+from logger  import logger
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--trainroot', required=True, help='path to dataset')
 parser.add_argument('--valroot', required=True, help='path to dataset')
@@ -28,7 +33,7 @@ parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. de
 parser.add_argument('--cuda', action='store_true', help='enables cuda')
 parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--crnn', default='', help="path to crnn (to continue training)")
-parser.add_argument('--alphabet', type=str, default='0123456789abcdefghijklmnopqrstuvwxyz')
+parser.add_argument('--alphabet', type=str, default='あいうえおかきくけこ')
 parser.add_argument('--experiment', default=None, help='Where to store samples and models')
 parser.add_argument('--displayInterval', type=int, default=500, help='Interval to be displayed')
 parser.add_argument('--n_test_disp', type=int, default=10, help='Number of samples to display when test')
@@ -64,16 +69,21 @@ else:
     sampler = None
 train_loader = torch.utils.data.DataLoader(
     train_dataset, batch_size=opt.batchSize,
-    shuffle=True, sampler=sampler,
+    shuffle=True,
+    # sampler=sampler,
     num_workers=int(opt.workers),
     collate_fn=dataset.alignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio=opt.keep_ratio))
 test_dataset = dataset.lmdbDataset(
     root=opt.valroot, transform=dataset.resizeNormalize((100, 32)))
 
-nclass = len(opt.alphabet) + 1
+alphabet_u = opt.alphabet.decode('utf-8')
+print(alphabet_u)
+
+nclass = len(alphabet_u) + 1
+print("Number of classes: %s" % (nclass))
 nc = 1
 
-converter = utils.strLabelConverter(opt.alphabet)
+converter = utils.strLabelConverter(alphabet_u)
 criterion = CTCLoss()
 
 
@@ -122,7 +132,7 @@ else:
 
 
 def val(net, dataset, criterion, max_iter=100):
-    print('Start val')
+    print('================ Start val')
 
     for p in crnn.parameters():
         p.requires_grad = False
@@ -199,14 +209,17 @@ for epoch in range(opt.niter):
         i += 1
 
         if i % opt.displayInterval == 0:
-            print('[%d/%d][%d/%d] Loss: %f' %
-                  (epoch, opt.niter, i, len(train_loader), loss_avg.val()))
+            logger.info("%s: Epoch: [%d/%d][%d/%d] Loss: %f" %
+                        (i, epoch, opt.niter, i, len(train_loader), loss_avg.val()))
             loss_avg.reset()
 
         if i % opt.valInterval == 0:
+            logger.info("%s:  Validating model" % (i))
             val(crnn, test_dataset, criterion)
 
-        # do checkpointing
-        if i % opt.saveInterval == 0:
-            torch.save(
-                crnn.state_dict(), '{0}/netCRNN_{1}_{2}.pth'.format(opt.experiment, epoch, i))
+    if epoch % 10 == 0:
+        # save model per 10 epoch
+        logger.info("%s:  Save model" % (i))
+        torch.save(
+            crnn.state_dict(), '{0}/netCRNN_{1}.pth'.format(opt.experiment, epoch))
+
